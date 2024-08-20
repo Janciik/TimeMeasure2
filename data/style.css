@@ -1,0 +1,54 @@
+html { 
+    font-family: Helvetica; 
+    display: inline-block; 
+    margin: 0px auto; 
+    text-align: center;
+}
+
+.button { 
+    background-color: #4CAF50; 
+    border: none; 
+    color: white; 
+    padding: 16px 40px; 
+    text-decoration: none; 
+    font-size: 30px; 
+    margin: 2px; 
+    cursor: pointer; 
+    border-radius: 10px;
+}
+
+input {
+    background-color: #f1f1f1;
+    border: 2px solid #333;
+    padding: 10px 20px;
+    margin: 10px 0;
+    border-radius: 5px;
+    font-size: 16px;
+    color: #333;
+    box-sizing: border-box;
+    float:left;
+    
+}
+
+input:focus {
+    background-color: #e0e0e0;
+    border-color: #4CAF50;
+    outline: none;
+}
+
+.buttons{
+    display: grid;
+    float: left;
+    width: 30%;
+    border:#4CAF50;
+}
+img{
+    float:left;
+    border: #4CAF50;
+    border-radius: 5px;
+}
+p{
+    border:#4CAF50;
+    border-radius: 5px;
+    font-size: 24px;
+}

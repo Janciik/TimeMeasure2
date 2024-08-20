@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ESP32</title>
+    <link rel="stylesheet" href="style.css">
+    <script src="script.js"></script>
+</head>
+<body>
+    <h1>Pomiar czasu</h1>
+    <img id="pinStateImage" src="opened.png">
+    <div class="buttons">
+        <button class = "button" onclick="openRelay()">Otwórz</button> <!--close D1 relay for fixed amount of time-->
+        <button class = "button" onclick="closeRelay()">Zamknij</button><!--close D2 relay for fixed amount of time-->
+        <button class = "button" onclick="openRelayTest()">Test otwarcia</button>
+        <button class = "button" onclick="closeRelayTest()">Test zamknięcia</button>
+    </div>
+    <input type = "number" id = "pulseValue" placeholder="Czas pulsu (s)" required> <!-- input for pulse duration in seconds. It sets how long relay should be in specified state -->
+    <p id = "timeD13">Czas otwarcia (D13): </p>
+    <p id = "timeD12">Czas zamknięcia (D12): </p>
+</body>
+</html>
