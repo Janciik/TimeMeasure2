@@ -7,7 +7,7 @@
 #include <esp_task_wdt.h>
 #define WDT_TIMEOUT 5
 
-char buffer[15]; //char array for storing floating point time
+char buffer[15]; //char array for storing floating point measured time
 
 //Wi-Fi credentials
 const char* ssid = "RUT901_2291";
@@ -261,4 +261,5 @@ void setup(){
 
 void loop(){
   updateRelayState(); //Refresh to check if switch state changes
+  esp_task_wdt_reset();
 }

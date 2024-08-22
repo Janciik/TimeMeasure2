@@ -17,7 +17,7 @@ function openRelayTest(){
     openTestRequest.open("GET", "/openrelaytest");
     openTestRequest.onreadystatechange = function(){
         if(openTestRequest.readyState == 4 && openTestRequest.status == 200){
-            document.getElementById("timeD13").innerHTML = "Czas otwarcia (D13): " + openTestRequest.responseText;
+            document.getElementById("timeD13").innerHTML = "Czas otwarcia (D26): " + openTestRequest.responseText;
         }
     }
     openTestRequest.send();
@@ -28,7 +28,7 @@ function closeRelayTest(){
     closeTestRequest.open("GET", "/closerelaytest");
     closeTestRequest.onreadystatechange = function(){
         if(closeTestRequest.readyState == 4 && closeTestRequest.status == 200){
-            document.getElementById("timeD12").innerHTML = "Czas zamknięcia (D12): " + closeTestRequest.responseText;
+            document.getElementById("timeD12").innerHTML = "Czas zamknięcia (D25): " + closeTestRequest.responseText;
         }
     }
     closeTestRequest.send();
