@@ -53,8 +53,8 @@ void pinSetup(){
   pinMode(D26, OUTPUT);
 
   //Set pins 12, 13, 14, 27 to INPUTS
-  pinMode(D12, INPUT);
-  pinMode(D13, INPUT);
+  pinMode(D25, INPUT);
+  pinMode(D26, INPUT);
   pinMode(D14, INPUT);
   pinMode(D27, INPUT);
   pinMode(stanWylacznika, INPUT);
@@ -165,7 +165,7 @@ String closeRelayTest() {
     status = "";
     startTime = micros(); // Capture start time when button is pressed
     Serial.println("Czas rozpoczecia: " + String(startTime));
-    while (digitalRead(D12) == HIGH); // Wait for pin state to change
+    while (digitalRead(D25) == LOW); // Wait for pin state to change
     unsigned long currentTime = micros(); // Capture end time when pin state changes
     time1 = currentTime - startTime;
     Serial.println("Czas zakonczenia: " + String(currentTime));
@@ -195,7 +195,7 @@ String openRelayTest() {
     status = "";
     startTime = micros(); // Capture start time when button is pressed
     Serial.println("Czas rozpoczecia: " + String(startTime));
-    while (digitalRead(D13) == LOW);
+    while (digitalRead(D26) == LOW);
     unsigned long currentTime = micros();
     time2 = currentTime - startTime;
     Serial.println("Czas zakonczenia: " + String(currentTime));
