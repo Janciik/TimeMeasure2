@@ -145,8 +145,6 @@ void updateRelayState(){
     }
   }
 }
-
-
 /*
 This function checks the relay state and measure time it takes to state change
 
@@ -156,6 +154,7 @@ Convert measured time to floating point number and print it on website
  */
 String closeRelayTest() {
   Serial.println("Stan wylacznika: " + String(digitalRead(stanWylacznika)));
+  digitalWrite(D33, HIGH);
   if (digitalRead(stanWylacznika) == LOW) {
     Serial.println("Wylacznik jest otwarty - zamknij wylacznik");
     status = "Wyłącznik jest otwarty - zamknij wyłącznik";
@@ -261,5 +260,4 @@ void setup(){
 
 void loop(){
   updateRelayState(); //Refresh to check if switch state changes
-  esp_task_wdt_reset();
 }
