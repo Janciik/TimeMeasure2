@@ -145,6 +145,7 @@ void updateRelayState(){
     }
   }
 }
+
 /*
 This function checks the relay state and measure time it takes to state change
 
@@ -169,7 +170,7 @@ String closeRelayTest() {
     time1 = currentTime - startTime;
     Serial.println("Czas zakonczenia: " + String(currentTime));
     Serial.println("Czas: " + String(time2));
-    digitalWrite(D33, LOW);
+    digitalWrite(D33, HIGH);
     new_time1 = time1 / 1000.0; // Convert to milliseconds
     dtostrf(new_time1, 3, 3, buffer); //Set number to floating point number
   }
