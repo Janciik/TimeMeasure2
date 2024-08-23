@@ -6,66 +6,53 @@
 #include <ArduinoJson.h>
 #include <esp_task_wdt.h>
 #define WDT_TIMEOUT 5
-
 char buffer[15]; //char array for storing floating point measured time
-
 //Wi-Fi credentials
 const char* ssid = "RUT901_2291";
 const char* password = "Uw15Fje3";
-
 unsigned long relayActivationTime = 0;
 int pulseDuration = 1000;
 bool relayActive = false;
 bool actionLocked = false;
 int activeRelay = 0; // 1 for relay 1, 2 for relay 2
-
 //INPUTS
 const int D12 = 12;
 const int D13 = 13;
 const int D14 = 14;
 const int D27 = 27;
 const int stanWylacznika = 15;
-
 //OUTPUTS
 const int D26 = 26;
 const int D25 = 25;
 const int D32 = 32;
 const int D33 = 33;
 const int outputPin = 2;
-
 //Floating point variables for storing precision time
 float new_time1 = 0;
 float new_time2 = 0;
-
 unsigned long startTime = 0;
 unsigned long time1 = 0;
 unsigned long time2 = 0;
-
 String status = "";
-
 AsyncWebServer server(80);
-
 void pinSetup(){
   pinMode(outputPin, OUTPUT); 
   pinMode(D32, OUTPUT);
   pinMode(D33, OUTPUT);
   pinMode(D25, OUTPUT);
   pinMode(D26, OUTPUT);
-
   //Set pins 12, 13, 14, 27 to INPUTS
   pinMode(D25, INPUT);
   pinMode(D26, INPUT);
   pinMode(D14, INPUT);
   pinMode(D27, INPUT);
   pinMode(stanWylacznika, INPUT);
-
  //Set pins 32, 33, 25, 26 states
   digitalWrite(D32, LOW);
   digitalWrite(D33, HIGH);
   digitalWrite(D25, HIGH);
   digitalWrite(D26, HIGH);
 }
-
 //Set Wi-fi connection
 void wifiInit(){
   WiFi.begin(ssid, password);
@@ -77,7 +64,6 @@ void wifiInit(){
 }
 /* 
 Opening relay for specific amount of time
-
 Function checks if there is any ongoing action
 It sets the relay pin to HIGH and records the time.
 activeRelay flag is set to 1 to indicate relay 1 state change.
@@ -98,7 +84,6 @@ void openRelay(int duration){
 }
 /*
 Closing relay for specific amount of time
-
 Function checks if there is any ongoing action
 It sets the relay pin to LOW and records the time.
 activeRelay flag is set to 2 to indicate relay 2 state change.
@@ -117,13 +102,10 @@ void closeRelay(int duration){
     Serial.println("Aktualnie wykonywana jest inna operacja!");
   }
 }
-
 /*
 Updates the state of the relay based on specified conditions.
-
 This function checks if the relay is active if the specified pulse duration has elapsed since the relay was activated.
 If the conditions are met, function switches off active relay and update state variables.
-
 */
 void updateRelayState(){
   if(relayActive){
@@ -148,7 +130,6 @@ void updateRelayState(){
 
 /*
 This function checks the relay state and measure time it takes to state change
-
 If main switch is LOW then print out the message about main switch state
 If main is HIGH, measure time it takes to change state on relay
 Convert measured time to floating point number and print it on website
@@ -170,7 +151,7 @@ String closeRelayTest() {
     time1 = currentTime - startTime;
     Serial.println("Czas zakonczenia: " + String(currentTime));
     Serial.println("Czas: " + String(time2));
-    digitalWrite(D33, HIGH);
+    digitalWrite(D33, LOW);
     new_time1 = time1 / 1000.0; // Convert to milliseconds
     dtostrf(new_time1, 3, 3, buffer); //Set number to floating point number
   }
@@ -178,7 +159,6 @@ String closeRelayTest() {
 }
 /*
 This function checks the relay state and measure time it takes to state change
-
 If main switch is HIGH then print out the message about main switch state
 If main is LOW, measure time it takes to change state on relay
 Convert measured time to floating point number and print it on website
@@ -206,7 +186,6 @@ String openRelayTest() {
   }
   return String(buffer) + " ms";
 }
-
 void setup(){
   Serial.begin(115200);
   pinSetup();
@@ -258,7 +237,6 @@ void setup(){
     request->send(200, "text/plain", String(pinState));
   });
 }
-
 void loop(){
   updateRelayState(); //Refresh to check if switch state changes
 }

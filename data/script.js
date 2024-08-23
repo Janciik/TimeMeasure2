@@ -4,14 +4,12 @@ function openRelay(){
     openRequest.open("GET", "/open?duration=" + pulseValue, true);
     openRequest.send();
 }
-
 function closeRelay(){
     var pulseValue = document.getElementById("pulseValue").value;
     var closeRequest = new XMLHttpRequest;
     closeRequest.open("GET", "/close?duration=" + pulseValue, true);
     closeRequest.send();
 }
-
 function openRelayTest(){
     var openTestRequest = new XMLHttpRequest;
     openTestRequest.open("GET", "/openrelaytest");
@@ -22,7 +20,6 @@ function openRelayTest(){
     }
     openTestRequest.send();
 }
-
 function closeRelayTest(){
     var closeTestRequest = new XMLHttpRequest;
     closeTestRequest.open("GET", "/closerelaytest");
@@ -33,7 +30,6 @@ function closeRelayTest(){
     }
     closeTestRequest.send();
 }
-
 function updatePinStateImage(){
     fetch('/pinState')
         .then(response => response.text())
