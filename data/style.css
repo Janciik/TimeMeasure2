@@ -5,8 +5,7 @@ html {
     text-align: center;
 }
 
-.button { 
-    background-color: #4CAF50; 
+.button {
     border: none; 
     color: white; 
     padding: 16px 40px; 
@@ -28,15 +27,19 @@ input {
     box-sizing: border-box;
     float:left;
 }
+
 .logo{
     display: block;
+    justify-content: center;
+    align-items: center;
     margin-left: auto;
     margin-right: auto;
     width:50%;
 }
+
 input:focus {
     background-color: #e0e0e0;
-    border-color: #4CAF50;
+    border-color: #EE7501;
     outline: none;
 }
 
@@ -44,19 +47,41 @@ input:focus {
     display: grid;
     float: left;
     width: 30%;
-    border:#4CAF50;
 }
-img{
+
+#pinStateImage{
     float:left;
-    border: #4CAF50;
     border-radius: 5px;
 }
+
 p{
-    border:#4CAF50;
     border-radius: 5px;
     font-size: 24px;
 }
+
 #results{
     float:right;
     width: 50%;
+}
+.closeButton{
+    background-color: #686A6F;
+    border: none; 
+    color: white; 
+    padding: 16px 40px; 
+    text-decoration: none;
+    font-size: 30px; 
+    margin: 2px; 
+    cursor: pointer; 
+    border-radius: 10px;
+}
+.openButton{
+    background-color: #EE7501;
+    border: none; 
+    color: white; 
+    padding: 16px 40px; 
+    text-decoration: none;
+    font-size: 30px; 
+    margin: 2px; 
+    cursor: pointer; 
+    border-radius: 10px;
 }

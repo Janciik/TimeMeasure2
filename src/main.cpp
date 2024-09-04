@@ -118,7 +118,7 @@ void openRelay(int duration){
 */
 void closeRelay(int duration){
   if (!actionLocked){
-    actionLocked = true; //If true, you need to wait for action to finish
+    actionLocked = true; //Jesli actionLocked = true, stan na przekazniku musi byc niski, aby przeprowadzić inną akcję
     digitalWrite(D27, LOW);
     digitalWrite(D19, LOW);
     relayActivationTime = millis(); 
@@ -216,11 +216,25 @@ String closeRelayTest(int duration) {
     else if (digitalRead(stanWylacznika) == LOW) {
       digitalWrite(D27, LOW);
       status = "";
+      bool pin1High = false, pin2High = false, pin3High = false;
       unsigned long startTime = micros(); // Capture start time when button is pressed
-      while (digitalRead(D18) == LOW || digitalRead(D17) == LOW || digitalRead(D4) == LOW);
-      time1 = micros() - startTime;
-      time2 = micros() - startTime;
-      time3 = micros() - startTime;
+      while (!pin1High || !pin2High || !pin3High) {
+          if (!pin1High && digitalRead(D18) == LOW) {
+              time1 = micros() - startTime;
+          } else {
+              pin1High = true;
+          }
+          if (!pin2High && digitalRead(D17) == LOW) {
+              time2 = micros() - startTime;
+          } else {
+              pin2High = true;
+          }
+          if (!pin3High && digitalRead(D4) == LOW) {
+              time3 = micros() - startTime;
+          } else {
+              pin3High = true;
+          }
+      }
       delay(duration * 1000);
       digitalWrite(D27, HIGH); // Zmiana stanu na wysoki
       new_time1 = time1 / 1000.0; // Konwersja na milisekundy
@@ -259,19 +273,36 @@ String openRelayTest(int duration) {
     actionLocked = true;
     Serial.println("Stan wylacznika: " + String(digitalRead(stanWylacznika)));
     if (digitalRead(stanWylacznika) == LOW) {
-      Serial.println("Wylacznik jest zamkniety - otworz wylacznik");
-      status = "Wyłącznik jest zamknięty - otwórz wyłącznik";
+      Serial.println("Wylacznik jest otwarty - zamknij wylacznik");
+      status = "Wyłącznik jest otwarty - zamknij wyłącznik";
       actionLocked = false;
       return status;
     }
     else if (digitalRead(stanWylacznika) == HIGH) {
       digitalWrite(D26, LOW);
       status = "";
+      bool pin1High = false, pin2High = false, pin3High = false;
       unsigned long startTime2 = micros(); //Zapisz czas otwarcia w zmiennej
-      while (digitalRead(D19) == LOW || digitalRead(D5) == LOW || digitalRead(D16) == LOW);
-      time1 = micros() - startTime2; //Wynik tego odejmowania to czas wykrycia zmiany stanu
-      time2 = micros() - startTime2;
-      time3 = micros() - startTime2;
+      while (!pin1High || !pin2High || !pin3High){
+          if (!pin1High && digitalRead(D19) == LOW) {
+              time1 = micros() - startTime2;
+          } else {
+              pin1High = true;
+          }
+          if (!pin2High && digitalRead(D5) == LOW) {
+              time2 = micros() - startTime2;
+          } else {
+              pin2High = true;
+          }
+          if (!pin3High && digitalRead(D16) == LOW) {
+              time3 = micros() - startTime2;
+          } else {
+              pin3High = true;
+          }
+      }
+      // time1 = micros() - startTime2; //Wynik tego odejmowania to czas wykrycia zmiany stanu
+      // time2 = micros() - startTime2;
+      // time3 = micros() - startTime2;
       delay(duration * 1000);
       digitalWrite(D26, HIGH); //Zmiana stanu na wysoki
 
@@ -319,6 +350,9 @@ void setup(){
   server.on("/script.js", HTTP_GET, [](AsyncWebServerRequest *request){
     request->send(SPIFFS, "/script.js", "text/javascript"); //Przeslij plik JS do pamieci ESP32
   });
+  server.on("/favicon.png", HTTP_GET, [](AsyncWebServerRequest *request){
+    request->send(SPIFFS, "/favicon.png", "image/png"); //Przeslij plik favicon do pamieci ESP32
+  });
   server.on("/opened.png", HTTP_GET, [](AsyncWebServerRequest *request){
     request->send(SPIFFS, "/opened.png", "image/png"); //Przeslij obrazek stanu niskiego wylacznika do pamieci ESP32
   });
@@ -364,7 +398,7 @@ void setup(){
   });
   server.on("/pinState", HTTP_GET, [](AsyncWebServerRequest *request){
     int pinState = digitalRead(stanWylacznika);
-    request->send(200, "text/plain", String(pinState)); //Przeslij stan wylacznika na strone internetowa
+    request->send(200, "image/png", String(pinState)); //Przeslij stan wylacznika na strone internetowa
   });
 }
 void loop(){
