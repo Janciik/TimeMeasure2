@@ -9,15 +9,19 @@
 </head>
 <body>
     <h1>Pomiar czasu</h1>
-    <img id="pinStateImage" src="opened.png">
+    <img id="pinStateImage" src="opened.png" alt="main switch">
     <div class="buttons">
         <button class = "button" onclick="openRelay()">Otwórz</button> <!--close D1 relay for fixed amount of time-->
         <button class = "button" onclick="closeRelay()">Zamknij</button><!--close D2 relay for fixed amount of time-->
-        <button class = "button" onclick="openRelayTest()">Test otwarcia</button>
-        <button class = "button" onclick="closeRelayTest()">Test zamknięcia</button>
+        <button class = "button" onclick="doBothOpen()">Test otwarcia</button>
+        <button class = "button" onclick="doBothClose()">Test zamknięcia</button>
     </div>
     <input type = "number" id = "pulseValue" placeholder="Czas pulsu (s)" required> <!-- input for pulse duration in seconds. It sets how long relay should be in specified state -->
-    <p id = "timeD13">Czas otwarcia (D26): </p>
-    <p id = "timeD12">Czas zamknięcia (D25): </p>
+    <div id = "results">
+        <p id = "openTime">Czas otwarcia: </p>
+        <p id = "closeTime">Czas zamknięcia: </p>
+        <p id = "localOpenTime">Czas własny otwarcia: </p>
+        <p id = "localCloseTime">Czas własny zamknięcia: </p>
+    </div>
 </body>
 </html>

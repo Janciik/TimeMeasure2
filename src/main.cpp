@@ -5,55 +5,79 @@
 #include <AsyncTCP.h>
 #include <ArduinoJson.h>
 #include <esp_task_wdt.h>
-#define WDT_TIMEOUT 5
-char buffer[15]; //char array for storing floating point measured time
-//Wi-Fi credentials
-const char* ssid = "RUT901_2291";
-const char* password = "Uw15Fje3";
+
+//Tablice do przechowywania wartości zmiennoprzecinkowych
+char buffer1[12];
+char buffer2[12];
+char buffer3[12];
+char localBuffer[12];
+
+//SSID i hasło do Wi-Fi
+const char* ssid = "Enerlink";
+const char* password = "enerlink12345";
 unsigned long relayActivationTime = 0;
 int pulseDuration = 1000;
-bool relayActive = false;
-bool actionLocked = false;
-int activeRelay = 0; // 1 for relay 1, 2 for relay 2
-//INPUTS
-const int D12 = 12;
-const int D13 = 13;
-const int D14 = 14;
-const int D27 = 27;
-const int stanWylacznika = 15;
+bool relayActive = false; //Flaga do sprawdzenia, czy przekaznik jest aktualnie w innym stanie
+bool actionLocked = false; //Flaga do zablokowania wykonania innej akcji, gdy wykonywana jest inna akcja
+int activeRelay = 0; //Flaga do sprawdzenia, ktory przekaznik jest aktualnie w innym stanie
+
+//Wejścia 
+const int D19 = 19; //Otworzenie L1
+const int D18 = 18; //Zamkniecie L1
+const int D5 = 5; //Otwarcie L2
+const int D17 = 17; //Zamkniecie L2
+const int D16 = 16; //Otwarcie L3
+const int D4 = 4; //Zamkniecie L3
+
+const int D35 = 35; //Otwarcie lokalnego przekaznika
+const int D34 = 34; //Zamkniecie lokalnego przekaznika
+const int stanWylacznika = 15; //Stan glownego wylacznika
+
 //OUTPUTS
-const int D26 = 26;
-const int D25 = 25;
-const int D32 = 32;
-const int D33 = 33;
-const int outputPin = 2;
-//Floating point variables for storing precision time
-float new_time1 = 0;
-float new_time2 = 0;
-unsigned long startTime = 0;
-unsigned long time1 = 0;
-unsigned long time2 = 0;
+const int D32 = 32; //Wyjscie do otwarcia lokalnego przekaznika
+const int D33 = 33; //Wyjscia do zamkniecia lokalnego przekaznika
+const int D26 = 26; //Wyjscie do otwarcia glownego wylacznika
+const int D27 = 27; //Wyjscie do zamkniecia glownego wylacznika
+
+//Zmienne zmiennoprzecinkowe do przechowywania czasu z wartosciami dziesietnymi
+float new_time1;
+float new_time2;
+float new_time3;
+float localTime;
+
+//Zmienne do przechwytywania czasu po zmianie stanu przekaznika
+unsigned long time1;
+unsigned long time2;
+unsigned long time3;
+unsigned long time4;
 String status = "";
 AsyncWebServer server(80);
+
 void pinSetup(){
-  pinMode(outputPin, OUTPUT); 
+  //Ustawienie pinow 32, 33, 26, 27 na wyjscie
   pinMode(D32, OUTPUT);
   pinMode(D33, OUTPUT);
-  pinMode(D25, OUTPUT);
   pinMode(D26, OUTPUT);
-  //Set pins 12, 13, 14, 27 to INPUTS
-  pinMode(D25, INPUT);
-  pinMode(D26, INPUT);
-  pinMode(D14, INPUT);
-  pinMode(D27, INPUT);
+  pinMode(D27, OUTPUT);
+
+  //Ustawienie pinow 19, 18, 17, 16, 5, 4, 34, 35 i stanu wylacznika na wejscie
+  pinMode(D19, INPUT);
+  pinMode(D18, INPUT);
+  pinMode(D17, INPUT);
+  pinMode(D16, INPUT);
+  pinMode(D5, INPUT);
+  pinMode(D4, INPUT);
+  pinMode(D34, INPUT);
+  pinMode(D35, INPUT);
   pinMode(stanWylacznika, INPUT);
- //Set pins 32, 33, 25, 26 states
-  digitalWrite(D32, LOW);
-  digitalWrite(D33, HIGH);
-  digitalWrite(D25, HIGH);
+
+ //Ustawienie w stan wysoki pinow odpowiadajacych za wyjscie na przekaznik i glowny wylacznik
   digitalWrite(D26, HIGH);
+  digitalWrite(D27, HIGH);
+  digitalWrite(D33, HIGH);
+  digitalWrite(D32, HIGH);
 }
-//Set Wi-fi connection
+//Uruchomienie polaczenia Wi-Fi
 void wifiInit(){
   WiFi.begin(ssid, password);
   while(WiFi.status() != WL_CONNECTED){
@@ -62,50 +86,55 @@ void wifiInit(){
   }
   Serial.println(WiFi.localIP());
 }
+
 /* 
-Opening relay for specific amount of time
-Function checks if there is any ongoing action
-It sets the relay pin to HIGH and records the time.
-activeRelay flag is set to 1 to indicate relay 1 state change.
-relayActive is used to indicate which relay is active.
+  Funkcja odpowiedzialna za otwarcie wylacznika na podany przez uzytkownika czas
+  actionLocked odpowiada za zablokowanie wykonywania innej operacji w tym momencie
+  Ustawia piny 26 i 18 w stan niski na podany przez uzytkownika czas
+  Ustawia flage, czy i ktory przekaznik jest aktualnie zamkniety
+  Po uplynieciu czasu zmienia stan przekaznika w domyslny otwarty
 */
 void openRelay(int duration){
   if (!actionLocked){
     actionLocked = true; //If true, you need to wait for action to finish
-    digitalWrite(D32, HIGH);
+    digitalWrite(D26, LOW);
+    digitalWrite(D18, LOW);
     relayActivationTime = millis();
-    pulseDuration = duration * 1000; //Set to miliseconds
-    activeRelay = 1; //Relay 1 state change flag
+    pulseDuration = duration * 1000;
+    activeRelay = 1; //Ustawienie flagi aktywnego przekaznika na 1
     relayActive = true;
   }
   else{
     Serial.println("Aktualnie wykonywana jest inna operacja!");
   }
 }
+
 /*
-Closing relay for specific amount of time
-Function checks if there is any ongoing action
-It sets the relay pin to LOW and records the time.
-activeRelay flag is set to 2 to indicate relay 2 state change.
-relayActive is used to indicate which relay is active.
- */
+  Funkcja odpowiedzialna za zamkniecie wylacznika na podany przez uzytkownika czas
+  actionLocked odpowiada za zablokowanie wykonywania innej operacji w tym momencie
+  Ustawia piny 27 i 19 w stan niski na podany przez uzytkownika czas
+  Ustawia flage, czy i ktory przekaznik jest aktualnie zamkniety
+  Po uplynieciu czasu zmienia stan przekaznika w domyslny otwarty
+*/
 void closeRelay(int duration){
   if (!actionLocked){
     actionLocked = true; //If true, you need to wait for action to finish
-    digitalWrite(D33, LOW);
+    digitalWrite(D27, LOW);
+    digitalWrite(D19, LOW);
     relayActivationTime = millis(); 
     pulseDuration = duration * 1000; //Set to miliseconds
-    activeRelay = 2; //Relay 2 state change flag
+    activeRelay = 2; //Ustawienie flagi aktywnego przekaznika na 2
     relayActive = true;
   }
   else{
     Serial.println("Aktualnie wykonywana jest inna operacja!");
   }
 }
+
 /*
-Updates the state of the relay based on specified conditions.
-This function checks if the relay is active if the specified pulse duration has elapsed since the relay was activated.
-If the conditions are met, function switches off active relay and update state variables.
+  Funkcja ktora cyklicznie odswieza stan wylacznika
+  Sprawdza czy uplynal czas stanu w ktorym byl wylacznik od momentu jego przelaczenia
+  Jesli ten czas uplynal, funkcja przelacza wylacznik w stan niski i aktualizuje jego stan
 */
 void updateRelayState(){
   if(relayActive){
@@ -113,10 +142,10 @@ void updateRelayState(){
     if(currentTime - relayActivationTime >= pulseDuration){
       switch(activeRelay){
         case 1:
-          digitalWrite(D32, LOW);
+          digitalWrite(D26, HIGH);
           break;
         case 2:
-          digitalWrite(D33, HIGH);
+          digitalWrite(D27, HIGH);
           break;
         default:
           break;
@@ -129,68 +158,152 @@ void updateRelayState(){
 }
 
 /*
-This function checks the relay state and measure time it takes to state change
-If main switch is LOW then print out the message about main switch state
-If main is HIGH, measure time it takes to change state on relay
-Convert measured time to floating point number and print it on website
- */
-String closeRelayTest() {
-  Serial.println("Stan wylacznika: " + String(digitalRead(stanWylacznika)));
-  digitalWrite(D33, HIGH);
-  if (digitalRead(stanWylacznika) == LOW) {
-    Serial.println("Wylacznik jest otwarty - zamknij wylacznik");
-    status = "Wyłącznik jest otwarty - zamknij wyłącznik";
-    return status;
-  }
-  else if (digitalRead(stanWylacznika) == HIGH) {
-    status = "";
-    startTime = micros(); // Capture start time when button is pressed
-    Serial.println("Czas rozpoczecia: " + String(startTime));
-    while (digitalRead(D25) == LOW); // Wait for pin state to change
-    unsigned long currentTime = micros(); // Capture end time when pin state changes
-    time1 = currentTime - startTime;
-    Serial.println("Czas zakonczenia: " + String(currentTime));
-    Serial.println("Czas: " + String(time2));
+  Funkcja, ktora mierzy czas zamkniecia lokalnego przekaznika (polaczonego bezposrednio do ESP32)
+  Przekaznik ustawiany jest w stan wysoki i mierzony jest czas wykrycia stanu wysokiego przez ESP32
+  Czas nastepnie jest zwracany w milisekundach i wyswietlany na stronie
+*/
+String localCloseTest(){
+  if(digitalRead(stanWylacznika) == LOW){
     digitalWrite(D33, LOW);
-    new_time1 = time1 / 1000.0; // Convert to milliseconds
-    dtostrf(new_time1, 3, 3, buffer); //Set number to floating point number
+    unsigned long startTime = micros();
+    while(digitalRead(D34) == LOW); //Poczekaj na wykrycie zmiany stanu
+    time4 = micros() - startTime;
+    digitalWrite(D33, HIGH);
+    localTime = time4 / 1000.0;
+    dtostrf(localTime, 3, 3, localBuffer);
   }
-  return String(buffer) + " ms";
+  return String(localBuffer) + " ms";
+  memset(localBuffer, 0, sizeof(localBuffer)); //Czyszczenie buforu przechowujacego czasu
+}
+
+/*
+  Funkcja, ktora mierzy czas otwarcia przekaznika (polaczonego bezposrednio do ESP32)
+  Przekaznik ustawiany jest w stan wysoki i mierzony jest czas wykrycia stanu wysokiego przez ESP32
+  Czas nastepnie jest zwracany w milisekundach i wyswietlany na stronie
+*/
+String localOpenTest(){
+  if(digitalRead(stanWylacznika) == HIGH){
+    digitalWrite(D32, LOW);
+    unsigned long startTime = micros();
+    while(digitalRead(D35) == LOW); //Poczekaj na wykrycie zmiany stanu
+    time4 = micros() - startTime;
+    digitalWrite(D32, HIGH);
+    localTime = time4 / 1000.0;
+    dtostrf(localTime, 3, 3, localBuffer);
+  }
+  return String(localBuffer) + " ms";
+  memset(localBuffer, 0, sizeof(localBuffer)); //Czyszczenie buforu przechowujacego czas
 }
 /*
-This function checks the relay state and measure time it takes to state change
-If main switch is HIGH then print out the message about main switch state
-If main is LOW, measure time it takes to change state on relay
-Convert measured time to floating point number and print it on website
- */
-String openRelayTest() {
-  Serial.println("Stan wylacznika: " + String(digitalRead(stanWylacznika)));
-  digitalWrite(D32, LOW);
-  if (digitalRead(stanWylacznika) == HIGH) {
-    Serial.println("Wylacznik jest zamkniety - otworz wylacznik");
-    status = "Wyłącznik jest zamknięty - otwórz wyłącznik";
-    return status;
-  } 
-  else if (digitalRead(stanWylacznika) == LOW) {
-    status = "";
-    startTime = micros(); // Capture start time when button is pressed
-    Serial.println("Czas rozpoczecia: " + String(startTime));
-    while (digitalRead(D26) == LOW);
-    unsigned long currentTime = micros();
-    time2 = currentTime - startTime;
-    Serial.println("Czas zakonczenia: " + String(currentTime));
-    Serial.println("Czas: " + String(time2));
-    digitalWrite(D32, HIGH);
-    new_time2 = time2 / 1000.0; // Convert to milliseconds
-    dtostrf(new_time2, 3, 3, buffer); //Set number to floating point number
+  Funkcja sprawdza stan wylacznika i mierzy czas wykrycia stanu wysokiego
+  Jesli glowny wylacznik jest OTWARTY to wypisywana jest odpowiednia wiadomosc na port szeregowy
+  Jesli glowny wylacznik jest ZAMKNIETY to mierzony jest czas wykrycia stanu wysokiego
+  Uplyniety czas jest nastepnie konwertowany z mikrosekund na milisekundy z trzema miejscami po przecinku
+*/
+String closeRelayTest(int duration) {
+  if(actionLocked){
+    Serial.println("Aktualnie wykonywana jest inna operacja!");
   }
-  return String(buffer) + " ms";
+  else{
+    actionLocked = true;
+    Serial.println("Stan wylacznika: " + String(digitalRead(stanWylacznika)));
+    if (digitalRead(stanWylacznika) == HIGH) {
+      Serial.println("Wylacznik jest zamkniety - otworz wylacznik");
+      status = "Wyłącznik jest zamknięty - otwórz wyłącznik";
+      actionLocked = false;
+      return status;
+    }
+    else if (digitalRead(stanWylacznika) == LOW) {
+      digitalWrite(D27, LOW);
+      status = "";
+      unsigned long startTime = micros(); // Capture start time when button is pressed
+      while (digitalRead(D18) == LOW || digitalRead(D17) == LOW || digitalRead(D4) == LOW);
+      time1 = micros() - startTime;
+      time2 = micros() - startTime;
+      time3 = micros() - startTime;
+      delay(duration * 1000);
+      digitalWrite(D27, HIGH); // Zmiana stanu na wysoki
+      new_time1 = time1 / 1000.0; // Konwersja na milisekundy
+      new_time2 = time2 / 1000.0;
+      new_time3 = time3 / 1000.0;
+
+      dtostrf(new_time1, 3, 3, buffer1); //Zapisanie czasu do zmiennej typu String
+      dtostrf(new_time2, 3, 3, buffer2);
+      dtostrf(new_time3, 3, 3, buffer3);
+
+      Serial.println("Czas L1: " + String(time1));
+      Serial.println("Czas L2: " + String(time2));
+      Serial.println("Czas L3: " + String(time3));
+      actionLocked = false;
+    }
+  }
+  return "Czas L1: " + String(buffer1) + " ms" + "\n";
+  return "Czas L2: " + String(buffer2) + " ms" + "\n";
+  return "Czas L3: " + String(buffer3) + " ms" + "\n";
+
+  memset(buffer1, 0, sizeof(buffer1)); //Czyszczenie buforu przechowujacego czas na pierwszej fazie
+  memset(buffer2, 0, sizeof(buffer2)); //Czyszczenie buforu przechowujacego czas na drugiej fazie
+  memset(buffer3, 0, sizeof(buffer3)); //Czyszczenie buforu przechowujacego czas na trzeciej fazie
 }
+/*
+  Funkcja sprawdza stan wylacznika i mierzy czas wykrycia stanu wysokiego
+  Jesli glowny wylacznik jest ZAMKNIETY to wypisywana jest odpowiednia wiadomosc na port szeregowy
+  Jesli glowny wylacznik jest OTWARTY to mierzony jest czas wykrycia stanu wysokiego
+  Uplyniety czas jest nastepnie konwertowany z mikrosekund na milisekundy z trzema miejscami po przecinku
+*/
+String openRelayTest(int duration) {
+  if(actionLocked){
+    Serial.println("Aktualnie wykonywana jest inna operacja!");
+  }
+  else{
+    actionLocked = true;
+    Serial.println("Stan wylacznika: " + String(digitalRead(stanWylacznika)));
+    if (digitalRead(stanWylacznika) == LOW) {
+      Serial.println("Wylacznik jest zamkniety - otworz wylacznik");
+      status = "Wyłącznik jest zamknięty - otwórz wyłącznik";
+      actionLocked = false;
+      return status;
+    }
+    else if (digitalRead(stanWylacznika) == HIGH) {
+      digitalWrite(D26, LOW);
+      status = "";
+      unsigned long startTime2 = micros(); //Zapisz czas otwarcia w zmiennej
+      while (digitalRead(D19) == LOW || digitalRead(D5) == LOW || digitalRead(D16) == LOW);
+      time1 = micros() - startTime2; //Wynik tego odejmowania to czas wykrycia zmiany stanu
+      time2 = micros() - startTime2;
+      time3 = micros() - startTime2;
+      delay(duration * 1000);
+      digitalWrite(D26, HIGH); //Zmiana stanu na wysoki
+
+      new_time1 = time1 / 1000.0;
+      new_time2 = time2 / 1000.0;
+      new_time3 = time3 / 1000.0;
+
+      dtostrf(new_time1, 3, 3, buffer1); //Konwersja czasu na liczbę zmiennoprzecinkową
+      dtostrf(new_time2, 3, 3, buffer2);
+      dtostrf(new_time3, 3, 3, buffer3);
+
+      Serial.println("Czas L1: " + String(time1));
+      Serial.println("Czas L2: " + String(time2));
+      Serial.println("Czas L3: " + String(time3));
+      actionLocked = false;
+    }
+  }
+
+  return "Czas L1: " + String(buffer1) + " ms" + "\n";
+  return "Czas L2: " + String(buffer2) + " ms" + "\n";
+  return "Czas L3: " + String(buffer3) + " ms" + "\n";
+
+  memset(buffer1, 0, sizeof(buffer1)); //Czyszczenie buforu przechowujacego czas na pierwszej fazie
+  memset(buffer2, 0, sizeof(buffer2)); //Czyszczenie buforu przechowujacego czas na drugiej fazie
+  memset(buffer3, 0, sizeof(buffer3)); //Czyszczenie buforu przechowujacego czas na trzeciej fazie
+
+}
+
 void setup(){
   Serial.begin(115200);
   pinSetup();
   wifiInit();
-  esp_task_wdt_init(WDT_TIMEOUT, true);
   if(!SPIFFS.begin(true)){
     Serial.println("SPIFFS Error");
     return;
@@ -198,45 +311,62 @@ void setup(){
   Serial.println(WiFi.localIP());
   server.begin();
   server.on("/", HTTP_GET, [](AsyncWebServerRequest *request){
-    request->send(SPIFFS, "/index.html", String()); //Send HTML file to ESP memory
+    request->send(SPIFFS, "/index.html", String()); //Przeslij plik HTML do pamieci ESP32
   });
   server.on("/style.css", HTTP_GET, [](AsyncWebServerRequest *request){
-    request->send(SPIFFS, "/style.css", "text/css"); //Send CSS file to ESP memory
+    request->send(SPIFFS, "/style.css", "text/css"); //Przeslij plik CSS do pamieci ESP32
   });
   server.on("/script.js", HTTP_GET, [](AsyncWebServerRequest *request){
-    request->send(SPIFFS, "/script.js", "text/javascript"); //Send JS file to ESP memory
+    request->send(SPIFFS, "/script.js", "text/javascript"); //Przeslij plik JS do pamieci ESP32
   });
   server.on("/opened.png", HTTP_GET, [](AsyncWebServerRequest *request){
-    request->send(SPIFFS, "/opened.png", "image/png"); //Send switch opened image to ESP memory
+    request->send(SPIFFS, "/opened.png", "image/png"); //Przeslij obrazek stanu niskiego wylacznika do pamieci ESP32
   });
   server.on("/closed.png", HTTP_GET, [](AsyncWebServerRequest *request){
-    request->send(SPIFFS, "/closed.png", "image/png"); //Send switch closed image to ESP memory
+    request->send(SPIFFS, "/closed.png", "image/png"); //Przeslij obrazek stanu wysokiego wylacznika do pamieci ESP32
+  });
+  server.on("/logo.png", HTTP_GET, [](AsyncWebServerRequest *request){
+    request->send(SPIFFS, "/logo.png", "image.png"); //Przeslij logo do pamieci ESP32
   });
   server.on("/open", HTTP_GET, [](AsyncWebServerRequest *request){
     if(request->hasParam("duration")){ 
-      int duration = request->getParam("duration")->value().toInt(); //Get pulse duration from pulseValue input
+      int duration = request->getParam("duration")->value().toInt(); //Pobierz wartosc dlugosci pulsu z pola tekstowego
       openRelay(duration);
-      request->send(200, "text/html", "Relay opened for " + String(duration) + " s");
+      request->send(200, "text/html", "Relay opened for " + String(duration) + " seconds");
     }
   });
   server.on("/close", HTTP_GET, [](AsyncWebServerRequest *request){
-    if(request->hasParam("duration")){
-      int duration = request->getParam("duration")->value().toInt(); //Get pulse duration from pulseValue input
-      closeRelay(duration);
-      request->send(200, "text/plain", "Relay closed for " + String(duration) + " s");
-    }
+  if(request->hasParam("duration")){
+    int duration = request->getParam("duration")->value().toInt(); //Pobierz wartosc dlugosci pulsu z pola tekstowego
+    closeRelay(duration);
+    request->send(200, "text/html", "Relay opened for " + String(duration) + " seconds");
+  }
+  });
+  server.on("/localclosetime", HTTP_GET, [](AsyncWebServerRequest *request){
+      request->send(200, "text/html", localCloseTest());
+  });
+  server.on("/localopentime", HTTP_GET, [](AsyncWebServerRequest *request){
+    request->send(200, "text/html", localOpenTest());
   });
   server.on("/openrelaytest", HTTP_GET, [](AsyncWebServerRequest *request){
-    request->send(200, "text/plain", openRelayTest());
+  if (request->hasParam("duration")) {
+    int duration = request->getParam("duration")->value().toInt(); //Pobierz wartosc dlugosci pulsu z pola tekstowego
+    openRelayTest(duration);
+    request->send(200, "text/plain", "<br />Czas L1: " + String(buffer1)+ " ms" + "<br />" + "Czas L2: " + String(buffer2) + " ms" + "<br />" + "Czas L3: " + String(buffer3) + " ms"); //Przeslij obliczony czas na stronie internetowa
+  }
   });
   server.on("/closerelaytest", HTTP_GET, [](AsyncWebServerRequest *request){
-    request->send(200, "text/plain", closeRelayTest());
+  if (request->hasParam("duration")) {
+    int duration = request->getParam("duration")->value().toInt(); //Pobierz wartosc dlugosci pulsu z pola tekstowego
+    closeRelayTest(duration);
+    request->send(200, "text/plain", "<br />Czas L1: " + String(buffer1) + " ms" + "<br />" + "Czas L2: " + String(buffer2) + " ms" + "<br />" + "Czas L3: " + String(buffer3) + " ms"); //Przeslij obliczony czas na strone internetowa
+  }
   });
   server.on("/pinState", HTTP_GET, [](AsyncWebServerRequest *request){
     int pinState = digitalRead(stanWylacznika);
-    request->send(200, "text/plain", String(pinState));
+    request->send(200, "text/plain", String(pinState)); //Przeslij stan wylacznika na strone internetowa
   });
 }
 void loop(){
-  updateRelayState(); //Refresh to check if switch state changes
+  updateRelayState(); //Odswiezanie stanu przekaznikow
 }

@@ -27,9 +27,13 @@ input {
     color: #333;
     box-sizing: border-box;
     float:left;
-    
 }
-
+.logo{
+    display: block;
+    margin-left: auto;
+    margin-right: auto;
+    width:50%;
+}
 input:focus {
     background-color: #e0e0e0;
     border-color: #4CAF50;
@@ -51,4 +55,8 @@ p{
     border:#4CAF50;
     border-radius: 5px;
     font-size: 24px;
+}
+#results{
+    float:right;
+    width: 50%;
 }
