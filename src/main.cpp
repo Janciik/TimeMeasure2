@@ -44,7 +44,7 @@ float new_time1;
 float new_time2;
 float new_time3;
 float localTime;
-
+bool pin1High = false, pin2High = false, pin3High = false;
 //Zmienne do przechwytywania czasu po zmianie stanu przekaznika
 unsigned long time1;
 unsigned long time2;
@@ -156,43 +156,27 @@ void updateRelayState(){
     }
   }
 }
-
-/*
-  Funkcja, ktora mierzy czas zamkniecia lokalnego przekaznika (polaczonego bezposrednio do ESP32)
-  Przekaznik ustawiany jest w stan wysoki i mierzony jest czas wykrycia stanu wysokiego przez ESP32
-  Czas nastepnie jest zwracany w milisekundach i wyswietlany na stronie
-*/
-String localCloseTest(){
-  if(digitalRead(stanWylacznika) == LOW){
-    digitalWrite(D33, LOW);
-    unsigned long startTime = micros();
-    while(digitalRead(D34) == LOW); //Poczekaj na wykrycie zmiany stanu
-    time4 = micros() - startTime;
-    digitalWrite(D33, HIGH);
-    localTime = time4 / 1000.0;
-    dtostrf(localTime, 3, 3, localBuffer);
-  }
-  return String(localBuffer) + " ms";
-  memset(localBuffer, 0, sizeof(localBuffer)); //Czyszczenie buforu przechowujacego czasu
-}
-
-/*
-  Funkcja, ktora mierzy czas otwarcia przekaznika (polaczonego bezposrednio do ESP32)
-  Przekaznik ustawiany jest w stan wysoki i mierzony jest czas wykrycia stanu wysokiego przez ESP32
-  Czas nastepnie jest zwracany w milisekundach i wyswietlany na stronie
-*/
-String localOpenTest(){
-  if(digitalRead(stanWylacznika) == HIGH){
+String localRelayTest(bool expectedState) {
+  unsigned long startTime;
+  if (digitalRead(stanWylacznika) == expectedState) {
     digitalWrite(D32, LOW);
-    unsigned long startTime = micros();
-    while(digitalRead(D35) == LOW); //Poczekaj na wykrycie zmiany stanu
+    startTime = micros();
+    while (digitalRead(D35) == LOW);
     time4 = micros() - startTime;
     digitalWrite(D32, HIGH);
     localTime = time4 / 1000.0;
     dtostrf(localTime, 3, 3, localBuffer);
   }
   return String(localBuffer) + " ms";
-  memset(localBuffer, 0, sizeof(localBuffer)); //Czyszczenie buforu przechowujacego czas
+  memset(localBuffer, 0, sizeof(localBuffer));
+}
+
+String localCloseTest() {
+    return localRelayTest(LOW);
+}
+
+String localOpenTest() {
+    return localRelayTest(HIGH);
 }
 /*
   Funkcja sprawdza stan wylacznika i mierzy czas wykrycia stanu wysokiego
@@ -216,22 +200,19 @@ String closeRelayTest(int duration) {
     else if (digitalRead(stanWylacznika) == LOW) {
       digitalWrite(D27, LOW);
       status = "";
-      bool pin1High = false, pin2High = false, pin3High = false;
-      unsigned long startTime = micros(); // Capture start time when button is pressed
+      pin1High = false, pin2High = false, pin3High = false;
+      unsigned long startTime = micros(); //Zapisz czas zamkniecia w zmiennej
       while (!pin1High || !pin2High || !pin3High) {
-          if (!pin1High && digitalRead(D18) == LOW) {
-              time1 = micros() - startTime;
-          } else {
+          if (!pin1High && digitalRead(D18) == HIGH) {
+              time1 = micros() - startTime; //Wyliczenie czasu zmiany stanu
               pin1High = true;
           }
-          if (!pin2High && digitalRead(D17) == LOW) {
-              time2 = micros() - startTime;
-          } else {
+          if (!pin2High && digitalRead(D17) == HIGH) {
+              time2 = micros() - startTime; //
               pin2High = true;
           }
-          if (!pin3High && digitalRead(D4) == LOW) {
+          if (!pin3High && digitalRead(D4) == HIGH) {
               time3 = micros() - startTime;
-          } else {
               pin3High = true;
           }
       }
@@ -251,9 +232,9 @@ String closeRelayTest(int duration) {
       actionLocked = false;
     }
   }
-  return "Czas L1: " + String(buffer1) + " ms" + "\n";
-  return "Czas L2: " + String(buffer2) + " ms" + "\n";
-  return "Czas L3: " + String(buffer3) + " ms" + "\n";
+  return "Czas L1: " + String(buffer1) + " ms" + "\n" + 
+  "Czas L2: " + String(buffer2) + " ms" + "\n" + 
+  "Czas L3: " + String(buffer3) + " ms" + "\n";
 
   memset(buffer1, 0, sizeof(buffer1)); //Czyszczenie buforu przechowujacego czas na pierwszej fazie
   memset(buffer2, 0, sizeof(buffer2)); //Czyszczenie buforu przechowujacego czas na drugiej fazie
@@ -281,28 +262,22 @@ String openRelayTest(int duration) {
     else if (digitalRead(stanWylacznika) == HIGH) {
       digitalWrite(D26, LOW);
       status = "";
-      bool pin1High = false, pin2High = false, pin3High = false;
+      pin1High = false, pin2High = false, pin3High = false;
       unsigned long startTime2 = micros(); //Zapisz czas otwarcia w zmiennej
       while (!pin1High || !pin2High || !pin3High){
-          if (!pin1High && digitalRead(D19) == LOW) {
+          if (!pin1High && digitalRead(D19) == HIGH) {
               time1 = micros() - startTime2;
-          } else {
               pin1High = true;
           }
-          if (!pin2High && digitalRead(D5) == LOW) {
+          if (!pin2High && digitalRead(D5) == HIGH) {
               time2 = micros() - startTime2;
-          } else {
               pin2High = true;
           }
-          if (!pin3High && digitalRead(D16) == LOW) {
+          if (!pin3High && digitalRead(D16) == HIGH) {
               time3 = micros() - startTime2;
-          } else {
               pin3High = true;
           }
       }
-      // time1 = micros() - startTime2; //Wynik tego odejmowania to czas wykrycia zmiany stanu
-      // time2 = micros() - startTime2;
-      // time3 = micros() - startTime2;
       delay(duration * 1000);
       digitalWrite(D26, HIGH); //Zmiana stanu na wysoki
 
@@ -321,9 +296,9 @@ String openRelayTest(int duration) {
     }
   }
 
-  return "Czas L1: " + String(buffer1) + " ms" + "\n";
-  return "Czas L2: " + String(buffer2) + " ms" + "\n";
-  return "Czas L3: " + String(buffer3) + " ms" + "\n";
+  return "Czas L1: " + String(buffer1) + " ms" + "\n" + 
+  "Czas L2: " + String(buffer2) + " ms" + "\n" + 
+  "Czas L3: " + String(buffer3) + " ms" + "\n";
 
   memset(buffer1, 0, sizeof(buffer1)); //Czyszczenie buforu przechowujacego czas na pierwszej fazie
   memset(buffer2, 0, sizeof(buffer2)); //Czyszczenie buforu przechowujacego czas na drugiej fazie
@@ -366,14 +341,14 @@ void setup(){
     if(request->hasParam("duration")){ 
       int duration = request->getParam("duration")->value().toInt(); //Pobierz wartosc dlugosci pulsu z pola tekstowego
       openRelay(duration);
-      request->send(200, "text/html", "Relay opened for " + String(duration) + " seconds");
+      request->send(200, "text/html", "Przekaznik otwarty przez" + String(duration) + " s");
     }
   });
   server.on("/close", HTTP_GET, [](AsyncWebServerRequest *request){
   if(request->hasParam("duration")){
     int duration = request->getParam("duration")->value().toInt(); //Pobierz wartosc dlugosci pulsu z pola tekstowego
     closeRelay(duration);
-    request->send(200, "text/html", "Relay opened for " + String(duration) + " seconds");
+    request->send(200, "text/html", "Przekaznik zamknkiety przez " + String(duration) + " s");
   }
   });
   server.on("/localclosetime", HTTP_GET, [](AsyncWebServerRequest *request){

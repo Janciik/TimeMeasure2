@@ -37,7 +37,7 @@ function localCloseTime(){
     localCloseRequest.open("GET", "/localclosetime");
     localCloseRequest.onreadystatechange = function(){
         if(localCloseRequest.readyState == 4 && localCloseRequest.status == 200){
-            document.getElementById("localCloseTime").innerHTML = "Czas własny zamknięcia: " + localCloseRequest.responseText;
+            document.getElementById("localRelay").innerHTML = "Czas własny przekaźnika: " + localCloseRequest.responseText;
         }
     }
     localCloseRequest.send();
@@ -47,7 +47,7 @@ function localOpenTime(){
     localOpenRequest.open("GET", "/localopentime");
     localOpenRequest.onreadystatechange = function(){
         if(localOpenRequest.readyState = 4 && localOpenRequest.status == 200){
-            document.getElementById("localOpenTime").innerHTML = "Czas własny otwarcia: " + localOpenRequest.responseText;
+            document.getElementById("localRelay").innerHTML = "Czas własny przekaźnika: " + localOpenRequest.responseText;
         }
     }
     localOpenRequest.send();
