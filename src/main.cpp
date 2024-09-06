@@ -201,6 +201,7 @@ String closeRelayTest(int duration) {
       digitalWrite(D27, LOW);
       status = "";
       pin1High = false, pin2High = false, pin3High = false;
+      relayActivationTime = millis();
       unsigned long startTime = micros(); //Zapisz czas zamkniecia w zmiennej
       while (!pin1High || !pin2High || !pin3High) {
           if (!pin1High && digitalRead(D18) == HIGH) {
@@ -216,8 +217,9 @@ String closeRelayTest(int duration) {
               pin3High = true;
           }
       }
-      delay(duration * 1000);
-      digitalWrite(D27, HIGH); // Zmiana stanu na wysoki
+      pulseDuration = duration * 1000;
+      activeRelay = 2;
+      relayActive = true;
       new_time1 = time1 / 1000.0; // Konwersja na milisekundy
       new_time2 = time2 / 1000.0;
       new_time3 = time3 / 1000.0;
@@ -263,6 +265,7 @@ String openRelayTest(int duration) {
       digitalWrite(D26, LOW);
       status = "";
       pin1High = false, pin2High = false, pin3High = false;
+      relayActivationTime = millis();
       unsigned long startTime2 = micros(); //Zapisz czas otwarcia w zmiennej
       while (!pin1High || !pin2High || !pin3High){
           if (!pin1High && digitalRead(D19) == HIGH) {
@@ -278,9 +281,10 @@ String openRelayTest(int duration) {
               pin3High = true;
           }
       }
-      delay(duration * 1000);
-      digitalWrite(D26, HIGH); //Zmiana stanu na wysoki
-
+      pulseDuration = duration * 1000;
+      activeRelay = 1;
+      relayActive = true;
+      
       new_time1 = time1 / 1000.0;
       new_time2 = time2 / 1000.0;
       new_time3 = time3 / 1000.0;
