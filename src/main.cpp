@@ -6,10 +6,10 @@
 #include <ArduinoJson.h>
 
 //Tablice do przechowywania wartości zmiennoprzecinkowych
-char buffer1[12];
-char buffer2[12];
-char buffer3[12];
-char localBuffer[12];
+char buffer1[9];
+char buffer2[9];
+char buffer3[9];
+char localBuffer[9];
 
 //SSID i hasło do Wi-Fi
 const char* ssid = "Enerlink";
@@ -18,6 +18,7 @@ unsigned long relayActivationTime = 0;
 int pulseDuration = 1000;
 bool relayActive = false; //Flaga do sprawdzenia, czy przekaznik jest aktualnie w innym stanie
 bool actionLocked = false; //Flaga do zablokowania wykonania innej akcji, gdy wykonywana jest inna akcja
+bool localISR = false; //Flaga dla przerwania czasu wlasnego przekaznika. W momencie w ktorym wartosc jest TRUE - funkcja opuszcza petle i wyliczany jest czas
 int activeRelay = 0; //Flaga do sprawdzenia, ktory przekaznik jest aktualnie w innym stanie
 
 //Wejścia 
@@ -46,6 +47,7 @@ float localTime;
 //Zmienne do przechwytywania czasu po zmianie stanu przekaznika
 unsigned long startTime;
 unsigned long startTime2;
+unsigned long endTime;
 unsigned long time1;
 unsigned long time2;
 unsigned long time3;
@@ -56,7 +58,6 @@ AsyncWebServer server(80);
 void pinSetup(){
   //Ustawienie pinow 32, 33, 26, 27 na wyjscie
   pinMode(D32, OUTPUT);
-  pinMode(D33, OUTPUT);
   pinMode(D26, OUTPUT);
   pinMode(D27, OUTPUT);
 
@@ -68,7 +69,6 @@ void pinSetup(){
   pinMode(D17, INPUT_PULLUP);
   pinMode(D16, INPUT_PULLUP);
 
-  pinMode(D34, INPUT);
   pinMode(D35, INPUT);
   pinMode(stanWylacznika, INPUT_PULLDOWN);
 
@@ -89,34 +89,54 @@ void wifiInit(){
   Serial.println(WiFi.localIP());
 }
 
+//Przerwanie dla otwarcia fazy 1
 void IRAM_ATTR openTimeL1(){
   if(digitalRead(D21) == HIGH){
     time1 = micros() - startTime2;
   }
 }
+//Przerwanie dla otwarcia fazy 2
 void IRAM_ATTR openTimeL2(){
   if(digitalRead(D18) == HIGH){
     time2 = micros() - startTime2;
   }
 }
+//Przerwanie dla otwarcia fazy 3
 void IRAM_ATTR openTimeL3(){
   if(digitalRead(D17) == HIGH){
     time3 = micros() - startTime2;
   }
 }
+//Przerwanie dla zamkniecia fazy 1
 void IRAM_ATTR closeTimeL1(){
   if(digitalRead(D19) == LOW){
     time1 = micros() - startTime;
   }
 }
+//Przerwanie dla zamkniecia fazy 2
 void IRAM_ATTR closeTimeL2(){
   if(digitalRead(D5) == LOW){
     time2 = micros() - startTime;
   }
 }
+//Przerwanie dla zamkniecia fazy 3
 void IRAM_ATTR closeTimeL3(){
   if(digitalRead(D16) == LOW){
     time3 = micros() - startTime;
+  }
+}
+//Przerwanie dla zamkniecia przekaznika
+void IRAM_ATTR closeISR(){
+  if(digitalRead(D35) == LOW){
+    endTime = micros();
+    localISR = true;
+  }
+}
+//Przerwanie dla otwarcia przekaznika
+void IRAM_ATTR openISR(){
+  if(digitalRead(D35) == HIGH){
+    endTime = micros();
+    localISR = true;
   }
 }
 
@@ -129,9 +149,8 @@ void IRAM_ATTR closeTimeL3(){
 */
 void openRelay(int duration){
   if (!actionLocked){
-    actionLocked = true; //If true, you need to wait for action to finish
+    actionLocked = true; //Wartosc TRUE oznacza ze funkcja jest aktualnie wykonywana i trzeba poczekac az funkcja zakonczy dzialanie
     digitalWrite(D26, LOW);
-    digitalWrite(D18, LOW);
     relayActivationTime = millis();
     pulseDuration = duration * 1000;
     activeRelay = 1; //Ustawienie flagi aktywnego przekaznika na 1
@@ -151,9 +170,8 @@ void openRelay(int duration){
 */
 void closeRelay(int duration){
   if (!actionLocked){
-    actionLocked = true; //Jesli actionLocked = true, stan na przekazniku musi byc niski, aby przeprowadzić inną akcję
+    actionLocked = true; //Wartosc TRUE oznacza ze funkcja jest aktualnie wykonywana i trzeba poczekac az funkcja zakonczy dzialanie
     digitalWrite(D27, LOW);
-    digitalWrite(D19, LOW);
     relayActivationTime = millis(); 
     pulseDuration = duration * 1000; //Set to miliseconds
     activeRelay = 2; //Ustawienie flagi aktywnego przekaznika na 2
@@ -163,7 +181,7 @@ void closeRelay(int duration){
     Serial.println("Aktualnie wykonywana jest inna operacja!");
   }
 }
- 
+
 /*
   Funkcja ktora cyklicznie odswieza stan wylacznika
   Sprawdza czy uplynal czas stanu w ktorym byl wylacznik od momentu jego przelaczenia
@@ -172,7 +190,7 @@ void closeRelay(int duration){
 void updateRelayState(){
   if(relayActive){
     unsigned long currentTime = millis();
-    if(currentTime - relayActivationTime >= pulseDuration){
+    if(currentTime - relayActivationTime >= pulseDuration){ //Jesli ten warunek bedzie prawdziwy to znaczy ze uplynal czas podany przez uzytkownika w polu tekstowym
       switch(activeRelay){
         case 1:
           digitalWrite(D26, HIGH);
@@ -189,28 +207,43 @@ void updateRelayState(){
     }
   }
 }
-
-String localRelayTest(bool expectedState) {
-  unsigned long startTime;
-  if (digitalRead(stanWylacznika) == expectedState) {
-    digitalWrite(D32, LOW);
-    startTime = micros();
-    while (digitalRead(D35) == LOW);
-    time4 = micros() - startTime;
-    digitalWrite(D32, HIGH);
-    localTime = time4 / 1000.0;
-    dtostrf(localTime, 3, 3, localBuffer);
-  }
-  return String(localBuffer) + " ms";
-  memset(localBuffer, 0, sizeof(localBuffer));
-}
-
+/*
+  Funkcja ktora jest odpowiedzialna za obliczanie czasu wlasnego zamkniecia przekaznika
+  Czyszczony jest bufor ktory przechowuje czas, flaga przekaznika ustawiana jest na FALSE,
+  Wyjscie D32 ustawiane jest na niskie, aby przekaznik sie otworzyl
+  Rozpoczyna sie pomiar, dopoki flaga nie zmieni stanu na TRUE, funkcja czeka
+*/
 String localCloseTest() {
-    return localRelayTest(LOW);
+  memset(localBuffer, 0, sizeof(localBuffer));
+  localISR = false;
+  digitalWrite(D32, LOW);
+  startTime = micros();
+  while(!localISR){
+    yield(); //Przekazuje kontrole innemu zadaniu oczekujacemu na wykonanie
+  }
+  time4 = endTime - startTime;
+  localTime = time4 / 1000.0;
+  dtostrf(localTime, -5, 3, localBuffer);
+  return String(localBuffer) + " ms";
 }
-
+/*
+  Funkcja ktora jest odpowiedzialna za obliczanie czasu wlasnego otwarcia przekaznika
+  Czyszczony jest bufor ktory przechowuje czas, flaga przekaznika ustawiana jest na FALSE,
+  Wyjscie D32 ustawiane jest na wysokie, aby przekaznik sie zamknal
+  Rozpoczyna sie pomiar, dopoki flaga nie zmieni stanu na TRUE, funkcja czeka
+*/
 String localOpenTest() {
-    return localRelayTest(HIGH);
+  memset(localBuffer, 0, sizeof(localBuffer));
+  localISR = false;
+  digitalWrite(D32, HIGH);
+  startTime = micros();
+  while(!localISR){
+    yield(); //Przekazuje kontrole innemu zadaniu oczekujacemu na wykonanie
+  }
+  time4 = endTime - startTime;
+  localTime = time4 / 1000.0;
+  dtostrf(localTime, -5, 3, localBuffer);
+  return String(localBuffer) + " ms";
 }
 /*
   Funkcja sprawdza stan wylacznika i mierzy czas wykrycia stanu wysokiego
@@ -262,9 +295,10 @@ String closeRelayTest(int duration) {
       new_time2 = time2 / 1000.0;
       new_time3 = time3 / 1000.0;
 
-      dtostrf(new_time1, 3, 3, buffer1); //Zapisanie czasu do zmiennej typu String
-      dtostrf(new_time2, 3, 3, buffer2);
-      dtostrf(new_time3, 3, 3, buffer3);
+      //Konwersja czasu na liczbę zmiennoprzecinkową
+      dtostrf(new_time1, -5, 3, buffer1); //Zapisanie czasu do zmiennej typu String
+      dtostrf(new_time2, -5, 3, buffer2);
+      dtostrf(new_time3, -5, 3, buffer3);
 
       Serial.println("Czas L1: " + String(time1));
       Serial.println("Czas L2: " + String(time2));
@@ -326,9 +360,10 @@ String openRelayTest(int duration) {
       new_time2 = time2 / 1000.0;
       new_time3 = time3 / 1000.0;
 
-      dtostrf(new_time1, 3, 3, buffer1); //Konwersja czasu na liczbę zmiennoprzecinkową
-      dtostrf(new_time2, 3, 3, buffer2);
-      dtostrf(new_time3, 3, 3, buffer3);
+      //Konwersja czasu na liczbę zmiennoprzecinkową
+      dtostrf(new_time1, -5, 3, buffer1); 
+      dtostrf(new_time2, -5, 3, buffer2);
+      dtostrf(new_time3, -5, 3, buffer3);
 
       Serial.println("Czas L1: " + String(time1));
       Serial.println("Czas L2: " + String(time2));
@@ -370,7 +405,9 @@ void setup(){
   attachInterrupt(digitalPinToInterrupt(D19), closeTimeL1, FALLING);
   attachInterrupt(digitalPinToInterrupt(D5), closeTimeL2, FALLING);
   attachInterrupt(digitalPinToInterrupt(D16), closeTimeL3, FALLING);
-
+  
+  attachInterrupt(digitalPinToInterrupt(D35), closeISR, FALLING);
+  attachInterrupt(digitalPinToInterrupt(D35), openISR, RISING);
   if(!SPIFFS.begin(true)){
     Serial.println("SPIFFS Error");
     return;
@@ -396,7 +433,7 @@ void setup(){
     request->send(SPIFFS, "/closed.png", "image/png"); //Przeslij obrazek stanu wysokiego wylacznika do pamieci ESP32
   });
   server.on("/logo.png", HTTP_GET, [](AsyncWebServerRequest *request){
-    request->send(SPIFFS, "/logo.png", "image.png"); //Przeslij logo do pamieci ESP32
+    request->send(SPIFFS, "/logo.png", "image/png"); //Przeslij logo do pamieci ESP32
   });
   server.on("/open", HTTP_GET, [](AsyncWebServerRequest *request){
     if(request->hasParam("duration")){
@@ -439,5 +476,4 @@ void setup(){
 }
 void loop(){
   updateRelayState(); //Odswiezanie stanu przekaznikow
-  // readState();
 }

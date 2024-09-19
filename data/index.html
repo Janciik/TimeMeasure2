@@ -18,7 +18,7 @@
         <button class = "openButton" onclick="doBothOpen()">Test otwarcia</button>
         <button class = "closeButton" onclick="doBothClose()">Test zamknięcia</button>
     </div>
-    <input type = "number" id = "pulseValue" placeholder="Czas pulsu (s)" required> <!-- input for pulse duration in seconds. It sets how long relay should be in specified state -->
+    <input type = "number" id = "pulseValue" placeholder="Czas pulsu (s)" min="0" required> <!-- input for pulse duration in seconds. It sets how long relay should be in specified state -->
     <div id = "results">
         <p id = "openTime">Czas otwarcia: </p>
         <p id = "closeTime">Czas zamknięcia: </p>
