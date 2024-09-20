@@ -272,22 +272,6 @@ String closeRelayTest(int duration) {
       status = "";
       relayActivationTime = millis();
       startTime = micros(); //Zapisz czas zamkniecia w zmiennej
-      /* 
-      while (!pin1High || !pin2High || !pin3High);
-        if (!pin1High && digitalRead(D19) == LOW) {
-          time1 = micros() - startTime; //Wyliczenie czasu zmiany stanu
-          pin1High = true;
-        }
-        if (!pin2High && digitalRead(D5) == LOW) {
-          time2 = micros() - startTime;
-          pin2High = true;
-        }
-        if (!pin3High && digitalRead(D16) == LOW) {
-          time3 = micros() - startTime;
-          pin3High = true;
-        }
-      }
-      */
       pulseDuration = duration * 1000;
       activeRelay = 2;
       relayActive = true;
@@ -337,21 +321,6 @@ String openRelayTest(int duration) {
       status = "";
       relayActivationTime = millis();
       startTime2 = micros(); //Zapisz czas otwarcia w zmiennej
-      /*
-      while (!pin1High || !pin2High || !pin3High);
-        if (!pin1High && digitalRead(D21) == HIGH) {
-          time1 = micros() - startTime2;
-          pin1High = true;
-        }
-        if (!pin2High && digitalRead(D18) == HIGH) {
-          time2 = micros() - startTime2;
-          pin2High = true;
-        }
-        if (!pin3High && digitalRead(D17) == HIGH) {
-          time3 = micros() - startTime2;
-          pin3High = true;
-        }
-      */
       pulseDuration = duration * 1000;
       activeRelay = 1;
       relayActive = true;
