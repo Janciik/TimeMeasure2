@@ -12,8 +12,8 @@ char buffer3[9];
 char localBuffer[9];
 
 //SSID i hasło do Wi-Fi
-const char* ssid = "Enerlink";
-const char* password = "enerlink12345";
+const char* ssid = "????";
+const char* password = "????";
 unsigned long relayActivationTime = 0;
 int pulseDuration = 1000;
 bool relayActive = false; //Flaga do sprawdzenia, czy przekaznik jest aktualnie w innym stanie
